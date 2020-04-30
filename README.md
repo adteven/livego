@@ -45,6 +45,7 @@ Run `docker run -p 1935:1935 -p 7001:7001 -p 7002:7002 -p 8090:8090 -d gwuhaolin
     - `RTMP`:`rtmp://localhost:1935/{appname}/movie`
     - `FLV`:`http://127.0.0.1:7001/{appname}/movie.flv`
     - `HLS`:`http://127.0.0.1:7002/{appname}/movie.m3u8`
+    - `WS-FLV`:`ws://127.0.0.1:7002/{appname}/movie.flv`
    
 all options: 
 ```bash
