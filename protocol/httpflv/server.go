@@ -2,6 +2,7 @@ package httpflv
 
 import (
 	"encoding/json"
+	"github.com/gorilla/websocket"
 	"net"
 	"net/http"
 	"strings"
@@ -85,12 +86,44 @@ func (server *Server) getStream(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp)
 }
 
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+type websocketConnWrap struct {
+	conn *websocket.Conn
+}
+func (c *websocketConnWrap) Write(data []byte) (int, error) {
+	err := c.conn.WriteMessage(websocket.BinaryMessage, data)
+	if err != nil {
+		return 0, err
+	}
+
+	return len(data), nil
+}
+
 func (server *Server) handleConn(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Error("http flv handleConn panic: ", r)
 		}
 	}()
+
+	var isWebsocket = false
+	var wsConn *websocket.Conn
+	if len(r.Header.Get("Sec-WebSocket-Key")) != 0 {
+		var err error
+		wsConn, err = upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Print("upgrade:", err)
+			return
+		}
+		isWebsocket = true
+	}
+	defer wsConn.Close()
+	wsW := &websocketConnWrap{conn: wsConn}
 
 	url := r.URL.String()
 	u := r.URL.Path
@@ -127,7 +160,13 @@ func (server *Server) handleConn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	writer := NewFLVWriter(paths[0], paths[1], url, w)
+
+	var writer *FLVWriter
+	if isWebsocket {
+		writer = NewFLVWriter(paths[0], paths[1], url, wsW)
+	} else {
+		writer = NewFLVWriter(paths[0], paths[1], url, w)
+	}
 
 	server.handler.HandleWriter(writer)
 	writer.Wait()
