@@ -17,6 +17,7 @@ Simple and efficient live broadcast server:
 - AMF
 - HLS
 - HTTP-FLV
+- WS-FLV
 
 #### Supported container formats
 - FLV
